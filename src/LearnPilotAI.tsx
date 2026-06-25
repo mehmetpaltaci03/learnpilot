@@ -175,7 +175,7 @@ const S = {
   navTab: (active) => ({ padding: "6px 14px", borderRadius: 8, border: "none", background: active ? "#1e1e3a" : "transparent", color: active ? "#a78bfa" : "#64748b", cursor: "pointer", fontSize: 13, fontWeight: 500, transition: "all 0.15s" }),
   navRight: { display: "flex", gap: 12, alignItems: "center" },
   xpBadge: { background: "#1e1e2e", border: "1px solid #2d2d4e", borderRadius: 20, padding: "4px 12px", fontSize: 13, color: "#a78bfa", fontWeight: 600 },
-  main: { flex: 1, padding: "24px", maxWidth: 1100, margin: "0 auto", width: "100%" },
+  main: { flex: 1, padding: "24px", width: "100%", boxSizing: "border-box" },
   card: { background: "#0d0d14", border: "1px solid #1e1e2e", borderRadius: 12, padding: 20 },
   h2: { fontSize: 22, fontWeight: 700, marginBottom: 16, color: "#f1f5f9" },
   h3: { fontSize: 16, fontWeight: 600, marginBottom: 8, color: "#e2e8f0" },
