@@ -242,7 +242,52 @@ function runJS(code) {
   }
 }
 
-// Python simulation (basic)
+// Pyodide real Python runner
+let pyodideInstance = null;
+let pyodideLoading = false;
+
+async function loadPyodideOnce() {
+  if (pyodideInstance) return pyodideInstance;
+  if (pyodideLoading) {
+    while (pyodideLoading) await new Promise(r => setTimeout(r, 100));
+    return pyodideInstance;
+  }
+  pyodideLoading = true;
+  try {
+    if (!window.loadPyodide) {
+      await new Promise((resolve, reject) => {
+        const script = document.createElement("script");
+        script.src = "https://cdn.jsdelivr.net/pyodide/v0.25.0/full/pyodide.js";
+        script.onload = resolve;
+        script.onerror = reject;
+        document.head.appendChild(script);
+      });
+    }
+    pyodideInstance = await window.loadPyodide({ indexURL: "https://cdn.jsdelivr.net/pyodide/v0.25.0/full/" });
+    pyodideLoading = false;
+    return pyodideInstance;
+  } catch (e) {
+    pyodideLoading = false;
+    throw e;
+  }
+}
+
+async function runPythonReal(code) {
+  try {
+    const pyodide = await loadPyodideOnce();
+    let output = "";
+    pyodide.setStdout({ batched: (text) => { output += text + "\n"; } });
+    pyodide.setStderr({ batched: (text) => { output += text + "\n"; } });
+    await pyodide.runPythonAsync(code);
+    return { output: output.trim(), error: null };
+  } catch (e) {
+    const msg = e.message || String(e);
+    const clean = msg.includes("Error") ? msg.split("\n").filter(l => l.includes("Error") || l.includes("error")).join("\n") || msg : msg;
+    return { output: "", error: clean };
+  }
+}
+
+// Python simulation (basic) - fallback only
 function runPython(code) {
   const logs = [];
   try {
@@ -426,16 +471,35 @@ function LessonDetail({ lesson, lang, onComplete, onBack, state }) {
   const [loadingHint, setLoadingHint] = useState(false);
   const [attempts, setAttempts] = useState(0);
 
-  const runCode = () => {
-    const result = lang === "python" ? runPython(code) : runJS(code);
-    setOutput(result.output);
-    setError(result.error || "");
-    if (result.error) {
-      setAttempts(a => a + 1);
+  const [pyLoading, setPyLoading] = useState(false);
+
+  const runCode = async () => {
+    if (lang === "python") {
+      setPyLoading(true);
+      setOutput("");
+      setError("");
+      const result = await runPythonReal(code);
+      setPyLoading(false);
+      setOutput(result.output);
+      setError(result.error || "");
+      if (!result.error) {
+        const allPass = lesson.exercise.tests.every(t => result.output.includes(t));
+        if (allPass) { setPassed(true); }
+        else { setAttempts(a => a + 1); setError("Beklenen çıktı alınamadı. Egzersiz koşulunu kontrol et."); }
+      } else {
+        setAttempts(a => a + 1);
+      }
     } else {
-      const allPass = lesson.exercise.tests.every(t => result.output.includes(t));
-      if (allPass) { setPassed(true); }
-      else { setAttempts(a => a + 1); setError("Beklenen çıktı alınamadı. Egzersiz koşulunu kontrol et."); }
+      const result = runJS(code);
+      setOutput(result.output);
+      setError(result.error || "");
+      if (result.error) {
+        setAttempts(a => a + 1);
+      } else {
+        const allPass = lesson.exercise.tests.every(t => result.output.includes(t));
+        if (allPass) { setPassed(true); }
+        else { setAttempts(a => a + 1); setError("Beklenen çıktı alınamadı. Egzersiz koşulunu kontrol et."); }
+      }
     }
   };
 
@@ -500,7 +564,7 @@ function LessonDetail({ lesson, lang, onComplete, onBack, state }) {
             <div style={{ ...S.card, marginBottom: 12 }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
                 <h3 style={{ ...S.h3, margin: 0 }}>✏️ Kod Editörü ({lang})</h3>
-                <button onClick={runCode} style={S.btn("success")}>▶ Çalıştır</button>
+                <button onClick={runCode} disabled={pyLoading} style={S.btn("success")}>{pyLoading ? "⏳ Çalışıyor..." : "▶ Çalıştır"}</button>
               </div>
               <textarea
                 value={code}
@@ -626,11 +690,24 @@ function CodeMentor() {
   const [analysis, setAnalysis] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const run = () => {
-    const result = lang === "python" ? runPython(code) : runJS(code);
-    setOutput(result.output);
-    setError(result.error || "");
-    if (result.error) analyzeError(result.error);
+  const [pyLoading, setPyLoading] = useState(false);
+
+  const run = async () => {
+    if (lang === "python") {
+      setPyLoading(true);
+      setOutput("");
+      setError("");
+      const result = await runPythonReal(code);
+      setPyLoading(false);
+      setOutput(result.output);
+      setError(result.error || "");
+      if (result.error) analyzeError(result.error);
+    } else {
+      const result = runJS(code);
+      setOutput(result.output);
+      setError(result.error || "");
+      if (result.error) analyzeError(result.error);
+    }
   };
 
   const analyzeError = async (err) => {
@@ -674,7 +751,7 @@ Kodu incele, potansiyel sorunları ve iyileştirme önerilerini belirt.`;
               <h3 style={{ ...S.h3, margin: 0 }}>✏️ Editör</h3>
               <div style={{ display: "flex", gap: 8 }}>
                 <button onClick={analyzeManual} disabled={loading} style={S.btn("outline")}>🔍 Analiz Et</button>
-                <button onClick={run} style={S.btn("success")}>▶ Çalıştır</button>
+                <button onClick={run} disabled={pyLoading} style={S.btn("success")}>{pyLoading ? "⏳ Çalışıyor..." : "▶ Çalıştır"}</button>
               </div>
             </div>
             <textarea
