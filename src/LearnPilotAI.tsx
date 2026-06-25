@@ -143,11 +143,32 @@ const BADGES = [
 ];
 
 const LEVEL_THRESHOLDS = [0, 100, 250, 500, 900, 1500, 2500];
+const DAILY_LIMIT = 10; // Günlük AI mesaj limiti — istediğin zaman değiştir!
 const getLevel = (xp) => LEVEL_THRESHOLDS.findIndex((t, i) => xp < (LEVEL_THRESHOLDS[i + 1] || Infinity));
+
+function getDailyUsage() {
+  try {
+    const today = new Date().toDateString();
+    const stored = localStorage.getItem("lp_ai_usage");
+    if (!stored) return { date: today, count: 0 };
+    const data = JSON.parse(stored);
+    if (data.date !== today) return { date: today, count: 0 };
+    return data;
+  } catch { return { date: new Date().toDateString(), count: 0 }; }
+}
+
+function incrementDailyUsage() {
+  try {
+    const usage = getDailyUsage();
+    usage.count += 1;
+    localStorage.setItem("lp_ai_usage", JSON.stringify(usage));
+    return usage.count;
+  } catch { return 1; }
+}
 
 // ─── STYLES ──────────────────────────────────────────────────
 const S = {
-  app: { minHeight: "100vh", background: "#0a0a0f", color: "#e2e8f0", fontFamily: "'Inter', system-ui, sans-serif", display: "flex", flexDirection: "column" },
+  app: { minHeight: "100vh", width: "100vw", maxWidth: "100%", background: "#0a0a0f", color: "#e2e8f0", fontFamily: "'Inter', system-ui, sans-serif", display: "flex", flexDirection: "column", margin: 0, padding: 0, boxSizing: "border-box" },
   nav: { background: "#0d0d14", borderBottom: "1px solid #1e1e2e", padding: "0 24px", display: "flex", alignItems: "center", justifyContent: "space-between", height: 56, position: "sticky", top: 0, zIndex: 100 },
   navLogo: { fontSize: 18, fontWeight: 800, background: "linear-gradient(135deg, #7c3aed, #06b6d4)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" },
   navTabs: { display: "flex", gap: 4 },
@@ -534,6 +555,13 @@ KURALLAR:
 
   const send = async () => {
     if (!input.trim() || loading) return;
+    const usage = getDailyUsage();
+    if (usage.count >= DAILY_LIMIT) {
+      setMessages(m => [...m, { role: "assistant", content: `⛔ Günlük ${DAILY_LIMIT} mesaj limitine ulaştınız! Yarın tekrar kullanabilirsiniz. 🌙` }]);
+      setInput("");
+      return;
+    }
+    incrementDailyUsage();
     const userMsg = { role: "user", content: input };
     const newMsgs = [...messages, userMsg];
     setMessages(newMsgs);
@@ -566,18 +594,23 @@ KURALLAR:
           ))}
           <div ref={bottomRef} />
         </div>
-        <div style={{ display: "flex", gap: 8, marginTop: 12, borderTop: "1px solid #1e1e2e", paddingTop: 12 }}>
-          <input
-            style={S.input}
-            value={input}
-            onChange={e => setInput(e.target.value)}
-            onKeyDown={e => e.key === "Enter" && !e.shiftKey && send()}
-            placeholder="Soruyu yaz... (Enter ile gönder)"
-            disabled={loading}
-          />
-          <button onClick={send} disabled={loading} style={{ ...S.btn(), flexShrink: 0 }}>
-            {loading ? "⏳" : "Gönder"}
-          </button>
+        <div style={{ borderTop: "1px solid #1e1e2e", paddingTop: 12 }}>
+          <div style={{ fontSize: 11, color: "#475569", marginBottom: 6, textAlign: "right" }}>
+            🔋 Günlük kalan: {Math.max(0, DAILY_LIMIT - getDailyUsage().count)}/{DAILY_LIMIT} mesaj
+          </div>
+          <div style={{ display: "flex", gap: 8 }}>
+            <input
+              style={S.input}
+              value={input}
+              onChange={e => setInput(e.target.value)}
+              onKeyDown={e => e.key === "Enter" && !e.shiftKey && send()}
+              placeholder="Soruyu yaz... (Enter ile gönder)"
+              disabled={loading}
+            />
+            <button onClick={send} disabled={loading} style={{ ...S.btn(), flexShrink: 0 }}>
+              {loading ? "⏳" : "Gönder"}
+            </button>
+          </div>
         </div>
       </div>
     </div>
