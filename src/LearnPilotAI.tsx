@@ -1,4 +1,10 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import { createClient } from "@supabase/supabase-js";
+
+// ─── SUPABASE ────────────────────────────────────────────────
+const SUPABASE_URL = "https://yccmepjsepinbxkgvfjg.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InljY21lcGpzZXBpbmJ4a2d2ZmpnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIzNDE3NTYsImV4cCI6MjA5NzkxNzc1Nn0.BpkASHBWc2ADJpIa1CzRieQ39M8MOXYCfos_VB90gNY";
+const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 // ─── CONSTANTS & DATA ────────────────────────────────────────
 const LESSONS = {
@@ -859,6 +865,79 @@ Bu öğrenci için 1 haftalık kişisel öğrenme yolu oluştur. Türkçe.` }];
   );
 }
 
+// ─── AUTH SCREEN ─────────────────────────────────────────────
+function AuthScreen({ onAuth }) {
+  const [mode, setMode] = useState<"login" | "register">("login");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState("");
+
+  const handleSubmit = async () => {
+    setError("");
+    setSuccess("");
+    setLoading(true);
+    if (!email || !password) { setError("Email ve şifre gerekli."); setLoading(false); return; }
+    if (password.length < 6) { setError("Şifre en az 6 karakter olmalı."); setLoading(false); return; }
+
+    if (mode === "register") {
+      const { error: err } = await supabase.auth.signUp({ email, password });
+      if (err) { setError(err.message); }
+      else { setSuccess("Kayıt başarılı! Email onayı gerekebilir."); }
+    } else {
+      const { data, error: err } = await supabase.auth.signInWithPassword({ email, password });
+      if (err) { setError("Email veya şifre hatalı."); }
+      else { onAuth(data.user); }
+    }
+    setLoading(false);
+  };
+
+  return (
+    <div style={{ minHeight: "100vh", background: "#0a0a0f", display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
+      <div style={{ maxWidth: 420, width: "100%", textAlign: "center" }}>
+        <div style={{ fontSize: 48, marginBottom: 8 }}>🚀</div>
+        <h1 style={{ fontSize: 28, fontWeight: 800, background: "linear-gradient(135deg, #7c3aed, #06b6d4)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", marginBottom: 4 }}>LearnPilot AI</h1>
+        <p style={{ color: "#64748b", marginBottom: 32, fontSize: 14 }}>AI destekli kişisel programlama öğretmeni</p>
+
+        {/* Tabs */}
+        <div style={{ display: "flex", background: "#0d0d14", borderRadius: 10, padding: 4, marginBottom: 24, border: "1px solid #1e1e2e" }}>
+          {(["login", "register"] as const).map(m => (
+            <button key={m} onClick={() => { setMode(m); setError(""); setSuccess(""); }}
+              style={{ flex: 1, padding: "10px 0", borderRadius: 8, border: "none", cursor: "pointer", fontSize: 14, fontWeight: 600, transition: "all 0.15s",
+                background: mode === m ? "linear-gradient(135deg, #7c3aed, #6d28d9)" : "transparent",
+                color: mode === m ? "#fff" : "#64748b" }}>
+              {m === "login" ? "Giriş Yap" : "Kayıt Ol"}
+            </button>
+          ))}
+        </div>
+
+        {/* Form */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 16 }}>
+          <input
+            type="email" placeholder="Email adresiniz" value={email}
+            onChange={e => setEmail(e.target.value)}
+            style={{ ...S.input, fontSize: 15, padding: "12px 16px" }}
+          />
+          <input
+            type="password" placeholder="Şifre (min. 6 karakter)" value={password}
+            onChange={e => setPassword(e.target.value)}
+            onKeyDown={e => e.key === "Enter" && handleSubmit()}
+            style={{ ...S.input, fontSize: 15, padding: "12px 16px" }}
+          />
+        </div>
+
+        {error && <div style={{ color: "#f87171", fontSize: 13, marginBottom: 12, padding: "8px 12px", background: "#1a0a0a", borderRadius: 8, border: "1px solid #7f1d1d" }}>{error}</div>}
+        {success && <div style={{ color: "#34d399", fontSize: 13, marginBottom: 12, padding: "8px 12px", background: "#0a1a12", borderRadius: 8, border: "1px solid #064e3b" }}>{success}</div>}
+
+        <button onClick={handleSubmit} disabled={loading} style={{ ...S.btn(), width: "100%", padding: "12px 0", fontSize: 15 }}>
+          {loading ? "⏳ Lütfen bekleyin..." : mode === "login" ? "Giriş Yap →" : "Hesap Oluştur →"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // ─── ONBOARDING ──────────────────────────────────────────────
 function Onboarding({ onDone }) {
   const [step, setStep] = useState(0);
@@ -924,6 +1003,8 @@ function Onboarding({ onDone }) {
 
 // ─── MAIN APP ────────────────────────────────────────────────
 export default function LearnPilotAI() {
+  const [user, setUser] = useState(null);
+  const [authLoading, setAuthLoading] = useState(true);
   const [onboarded, setOnboarded] = useState(false);
   const [tab, setTab] = useState("dashboard");
   const [activeLesson, setActiveLesson] = useState(null);
@@ -933,9 +1014,27 @@ export default function LearnPilotAI() {
     completedLessons: [], weakTopics: [],
   });
 
+  // Oturum kontrolü
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null);
+      setAuthLoading(false);
+    });
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+    });
+    return () => subscription.unsubscribe();
+  }, []);
+
   const handleOnboard = (level, style) => {
     setState(s => ({ ...s, level, learningStyle: style }));
     setOnboarded(true);
+  };
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    setUser(null);
+    setOnboarded(false);
   };
 
   const handleComplete = (lesson) => {
@@ -951,6 +1050,13 @@ export default function LearnPilotAI() {
     setTab("lessons");
   };
 
+  if (authLoading) return (
+    <div style={{ minHeight: "100vh", background: "#0a0a0f", display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <div style={{ color: "#7c3aed", fontSize: 18 }}>⏳ Yükleniyor...</div>
+    </div>
+  );
+
+  if (!user) return <AuthScreen onAuth={setUser} />;
   if (!onboarded) return <Onboarding onDone={handleOnboard} />;
 
   const level = getLevel(state.xp);
@@ -976,6 +1082,7 @@ export default function LearnPilotAI() {
         <div style={S.navRight}>
           <span style={S.xpBadge}>Lv.{level} • {state.xp} XP</span>
           <span style={{ fontSize: 13, color: "#f59e0b" }}>{state.streak}🔥</span>
+          <button onClick={handleLogout} style={{ ...S.btn("outline"), padding: "4px 12px", fontSize: 12 }}>Çıkış</button>
         </div>
       </nav>
       <main style={S.main}>
