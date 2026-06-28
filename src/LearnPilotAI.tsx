@@ -416,7 +416,110 @@ function XPBar({ xp }) {
     </div>
   );
 }
+// ─── PROGRESS CHARTS ─────────────────────────────────────────
+function ProgressCharts({ state }) {
+  const [progressData, setProgressData] = useState([]);
+  const [loading, setLoading] = useState(true);
 
+  useEffect(() => {
+    async function fetchProgress() {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const { data } = await supabase
+        .from("progress")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("completed_at", { ascending: true });
+      setProgressData(data || []);
+      setLoading(false);
+    }
+    fetchProgress();
+  }, []);
+
+  if (loading) return null;
+
+  // Günlük ders sayısı
+  const dailyMap = {};
+  progressData.forEach(p => {
+    const day = new Date(p.completed_at).toLocaleDateString("tr-TR", { month: "short", day: "numeric" });
+    dailyMap[day] = (dailyMap[day] || 0) + 1;
+  });
+  const dailyLabels = Object.keys(dailyMap).slice(-7);
+  const dailyValues = dailyLabels.map(d => dailyMap[d]);
+
+  // Dile göre dağılım
+  const langMap = {};
+  progressData.forEach(p => {
+    langMap[p.language] = (langMap[p.language] || 0) + 1;
+  });
+  const langTotal = Object.values(langMap).reduce((a, b) => a + b, 0);
+
+  const barMax = Math.max(...dailyValues, 1);
+
+  return (
+    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 }}>
+      {/* Çizgi Grafik - Günlük */}
+      <div style={S.card}>
+        <h3 style={S.h3}>📈 Günlük Tamamlanan Ders</h3>
+        {dailyLabels.length === 0 ? (
+          <p style={{ color: "#64748b", fontSize: 13 }}>Henüz tamamlanan ders yok.</p>
+        ) : (
+          <div>
+            <div style={{ display: "flex", alignItems: "flex-end", gap: 8, height: 100, marginBottom: 8 }}>
+              {dailyLabels.map((day, i) => (
+                <div key={day} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
+                  <span style={{ fontSize: 10, color: "#a78bfa", fontWeight: 700 }}>{dailyValues[i]}</span>
+                  <div style={{
+                    width: "100%",
+                    height: `${(dailyValues[i] / barMax) * 80}px`,
+                    background: "linear-gradient(180deg, #7c3aed, #06b6d4)",
+                    borderRadius: "4px 4px 0 0",
+                    minHeight: 4
+                  }} />
+                </div>
+              ))}
+            </div>
+            <div style={{ display: "flex", gap: 8 }}>
+              {dailyLabels.map(day => (
+                <div key={day} style={{ flex: 1, fontSize: 9, color: "#64748b", textAlign: "center" }}>{day}</div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Pasta Grafik - Dile Göre */}
+      <div style={S.card}>
+        <h3 style={S.h3}>🍩 Dile Göre Dağılım</h3>
+        {langTotal === 0 ? (
+          <p style={{ color: "#64748b", fontSize: 13 }}>Henüz tamamlanan ders yok.</p>
+        ) : (
+          <div>
+            {Object.entries(langMap).map(([lang, count]) => {
+              const pct = Math.round((count / langTotal) * 100);
+              const color = lang === "python" ? "#7c3aed" : "#06b6d4";
+              const emoji = lang === "python" ? "🐍" : "✨";
+              return (
+                <div key={lang} style={{ marginBottom: 12 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, marginBottom: 4 }}>
+                    <span style={{ color: "#e2e8f0" }}>{emoji} {lang === "python" ? "Python" : "JavaScript"}</span>
+                    <span style={{ color, fontWeight: 700 }}>{count} ders ({pct}%)</span>
+                  </div>
+                  <div style={S.progress(pct, color).outer}>
+                    <div style={S.progress(pct, color).inner} />
+                  </div>
+                </div>
+              );
+            })}
+            <div style={{ fontSize: 12, color: "#64748b", marginTop: 8, textAlign: "center" }}>
+              Toplam {langTotal} ders tamamlandı
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
 // ─── DASHBOARD ───────────────────────────────────────────────
 function Dashboard({ state }) {
   const { xp, streak, completedLessons, weakTopics } = state;
