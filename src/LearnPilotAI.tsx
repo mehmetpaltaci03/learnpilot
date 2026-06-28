@@ -1912,7 +1912,7 @@ if (!planShown) {
 }
   const level = getLevel(state.xp);
   const navItems = [
-    { id: "dashboard", label: "📊 Dashboard" },
+    { id: "dashboard", label: "📊 Kontrol Paneli" },
     { id: "lessons", label: "📚 Dersler" },
     { id: "tutor", label: "🤖 AI Tutor" },
     { id: "mentor", label: "🔍 Kod Mentor" },
