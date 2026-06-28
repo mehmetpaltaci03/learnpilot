@@ -1769,51 +1769,58 @@ export default function LearnPilotAI() {
 
   // Oturum kontrolü ve veri yükleme
 useEffect(() => {
-  supabase.auth.getSession().then(async ({ data: { session } }) => {
+  const loadSession = async () => {
+    const { data: { session } } = await supabase.auth.getSession();
     const u = session?.user ?? null;
+
     setUser(u);
-    setAuthLoading(false);
-    console.log("Session user:", u);
-    if (!u) setProfileLoaded(true);
-    if (u) {
-      const { data: profile, error } = await supabase
-  .from("profiles")
-  .select("*")
-  .eq("id", u.id)
-  .maybeSingle();
-      
-if (error) {
-  console.error("Profile okunamadı:", error);
-  alert("Profil okunamadı: " + error.message);
-  setProfileLoaded(true);
-  setAuthLoading(false);
-  return;
-}
-if (profile) {
-  setState(s => ({
-    ...s,
-    xp: profile.xp || 0,
-    streak: profile.streak || 1,
-    completedLessons: profile.completed_lessons || [],
-    weakTopics: profile.weak_topics || [],
-    level: profile.level || "beginner",
-    learningStyle: profile.learning_style || "practice",
-  }));
 
-  setOnboarded(Boolean(profile.onboarded));
-  setPlanShown(Boolean(profile.onboarded));
-} else {
-  setOnboarded(false);
-  setPlanShown(false);
-}
-
-setProfileLoaded(true);
-setAuthLoading(false);
-      }
+    if (!u) {
+      setProfileLoaded(true);
+      setAuthLoading(false);
+      return;
     }
-  });
-}, []);
 
+    const { data: profile, error } = await supabase
+      .from("profiles")
+      .select("*")
+      .eq("id", u.id)
+      .maybeSingle();
+
+    if (error) {
+      console.error("Profile okunamadı:", error);
+      setOnboarded(false);
+      setPlanShown(false);
+      setProfileLoaded(true);
+      setAuthLoading(false);
+      return;
+    }
+
+    if (profile) {
+      setState(s => ({
+        ...s,
+        xp: profile.xp || 0,
+        streak: profile.streak || 1,
+        completedLessons: profile.completed_lessons || [],
+        weakTopics: profile.weak_topics || [],
+        level: profile.level || "beginner",
+        learningStyle: profile.learning_style || "practice",
+      }));
+
+      setOnboarded(Boolean(profile.onboarded));
+      setPlanShown(Boolean(profile.onboarded));
+    } else {
+      setOnboarded(false);
+      setPlanShown(false);
+    }
+
+    setProfileLoaded(true);
+    setAuthLoading(false);
+  };
+
+  loadSession();
+}, []);
+  
   const handleOnboard = async (level, style) => {
   const { data: { user: u } } = await supabase.auth.getUser();
   if (!u) return;
