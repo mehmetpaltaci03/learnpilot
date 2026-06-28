@@ -1773,6 +1773,7 @@ useEffect(() => {
     const u = session?.user ?? null;
     setUser(u);
     setAuthLoading(false);
+    console.log("Session user:", u);
     if (!u) setProfileLoaded(true);
     if (u) {
       const { data: profile } = await supabase
@@ -1780,6 +1781,7 @@ useEffect(() => {
         .select("*")
         .eq("id", u.id)
         .single();
+      console.log("Profile:", profile);
       if (profile) {
         setState(s => ({
           ...s,
