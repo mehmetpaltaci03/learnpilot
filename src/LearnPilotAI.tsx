@@ -532,6 +532,7 @@ function Dashboard({ state }) {
     <div>
       <h2 style={S.h2}>📊 Dashboard</h2>
       <div style={{ display: "flex", gap: 12, marginBottom: 20, flexWrap: "wrap" }}>
+        <ProgressCharts state={state} />
         <StatCard label="Toplam XP" value={xp} color="#a78bfa" />
         <StatCard label="Seviye" value={`Lv.${level}`} color="#06b6d4" />
         <StatCard label="Günlük Seri" value={`${streak} 🔥`} color="#f59e0b" />
