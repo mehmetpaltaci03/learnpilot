@@ -522,8 +522,7 @@ function Lessons({ state, onComplete, onStartLesson }) {
     </div>
   );
 }
-// ─── QUIZ COMPONENT ──────────────────────────────────────────
-// Bu bileşeni LessonDetail'in hemen üstüne ekle
+
 function QuizPanel({ lesson, lang, onQuizComplete }) {
   const [quiz, setQuiz] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -723,7 +722,88 @@ Kısa analiz yap (3-4 cümle): Hangi konular eksik, ne çalışmalı, genel değ
       </div>
     );
   }
-
+// ── QUIZ FORM ──
+  return (
+    <div>
+      {!quiz && !loading && (
+        <div style={{ ...S.card, textAlign: "center" }}>
+          <div style={{ fontSize: 40, marginBottom: 12 }}>📝</div>
+          <h3 style={{ ...S.h3, color: "#e2e8f0" }}>Konu Testi</h3>
+          <p style={{ color: "#64748b", fontSize: 14, marginBottom: 20 }}>"{lesson.title}" konusunu ne kadar öğrendin?</p>
+          <button onClick={loadQuiz} style={S.btn()}>✨ Testi Başlat</button>
+        </div>
+      )}
+      {loading && (
+        <div style={{ ...S.card, textAlign: "center", padding: 40 }}>
+          <div style={{ fontSize: 32, marginBottom: 12 }}>⏳</div>
+          <div style={{ color: "#a78bfa", fontSize: 15 }}>AI soruları hazırlıyor...</div>
+        </div>
+      )}
+      {quiz && !submitted && (
+        <div>
+          <div style={{ ...S.card, marginBottom: 16 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <h3 style={{ ...S.h3, margin: 0, color: "#a78bfa" }}>📝 {lesson.title} — Quiz</h3>
+              <span style={S.tag("#7c3aed")}>5 Soru</span>
+            </div>
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+            {quiz.questions.map((q, i) => (
+              <div key={q.id} style={{ ...S.card }}>
+                <div style={{ display: "flex", gap: 10, marginBottom: 12 }}>
+                  <span style={{ width: 26, height: 26, borderRadius: "50%", background: "#1e1e3a", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, color: "#a78bfa", flexShrink: 0 }}>{i + 1}</span>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
+                      <span style={S.tag(q.type === "multiple_choice" ? "#06b6d4" : q.type === "true_false" ? "#10b981" : "#f59e0b")}>
+                        {q.type === "multiple_choice" ? "Çoktan Seçmeli" : q.type === "true_false" ? "Doğru / Yanlış" : "Boşluk Doldurma"}
+                      </span>
+                    </div>
+                    <p style={{ fontSize: 14, color: "#e2e8f0", margin: 0 }}>{q.question}</p>
+                  </div>
+                </div>
+                {q.type === "multiple_choice" && (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8, paddingLeft: 36 }}>
+                    {q.options.map((opt, oi) => {
+                      const letter = ["A","B","C","D"][oi];
+                      const selected = answers[q.id] === letter;
+                      return (
+                        <button key={oi} onClick={() => handleAnswer(q.id, letter)}
+                          style={{ padding: "10px 14px", borderRadius: 8, border: `1px solid ${selected ? "#7c3aed" : "#1e1e2e"}`, background: selected ? "#1e1e3a" : "#0a0a0f", color: selected ? "#a78bfa" : "#94a3b8", cursor: "pointer", textAlign: "left", fontSize: 13 }}>
+                          {opt}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+                {q.type === "true_false" && (
+                  <div style={{ display: "flex", gap: 10, paddingLeft: 36 }}>
+                    {[{ val: "true", label: "✓ Doğru" }, { val: "false", label: "✗ Yanlış" }].map(opt => (
+                      <button key={opt.val} onClick={() => handleAnswer(q.id, opt.val)}
+                        style={{ flex: 1, padding: "10px 0", borderRadius: 8, border: `1px solid ${answers[q.id] === opt.val ? (opt.val === "true" ? "#10b981" : "#ef4444") : "#1e1e2e"}`, background: answers[q.id] === opt.val ? (opt.val === "true" ? "#052e16" : "#1a0a0a") : "#0a0a0f", color: answers[q.id] === opt.val ? (opt.val === "true" ? "#10b981" : "#ef4444") : "#64748b", cursor: "pointer", fontSize: 14, fontWeight: 600 }}>
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {q.type === "fill_blank" && (
+                  <div style={{ paddingLeft: 36 }}>
+                    <input style={{ ...S.input, maxWidth: 300 }} placeholder="Cevabını yaz..." value={fillInputs[q.id] || ""} onChange={e => handleFill(q.id, e.target.value)} />
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+          <div style={{ marginTop: 20, display: "flex", justifyContent: "flex-end" }}>
+            <button onClick={submitQuiz} disabled={!allAnswered}
+              style={{ ...S.btn(allAnswered ? "primary" : "outline"), opacity: allAnswered ? 1 : 0.5, fontSize: 15, padding: "10px 28px" }}>
+              Testi Bitir & Analiz Et →
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 function LessonDetail({ lesson, lang, onComplete, onBack, state }) {
   const [tab, setTab] = useState("learn");
   const [code, setCode] = useState(lesson.exercise.starter);
@@ -1562,32 +1642,6 @@ Bu öğrenci için 1 haftalık kişisel programlama planı oluştur. Türkçe ya
     </div>
   );
 }
-
-// ─── MAIN APP DEĞİŞİKLİKLERİ ─────────────────────────────────
-// LearnPilotAI fonksiyonunda şu değişiklikleri yap:
-
-// 1) State'e planShown ekle:
-//    const [planShown, setPlanShown] = useState(false);
-
-// 2) handleOnboard fonksiyonunu şöyle değiştir:
-//    const handleOnboard = (level, style) => {
-//      setState(s => ({ ...s, level, learningStyle: style }));
-//      setOnboarded(true);
-//      // planShown false kalıyor, plan ekranı gösterilecek
-//    };
-
-// 3) render kısmında Onboarding'den sonra şu sırayı kullan:
-//    if (authLoading) return <LoadingScreen />;
-//    if (!user) return <AuthScreen onAuth={setUser} />;
-//    if (!onboarded) return <Onboarding onDone={handleOnboard} />;
-//    if (!planShown) return (
-//      <PlanScreen
-//        level={state.level}
-//        learningStyle={state.learningStyle}
-//        onDone={() => setPlanShown(true)}
-//      />
-//    );
-//    // ... geri kalanı aynı
 
 // ─── MAIN APP ────────────────────────────────────────────────
 export default function LearnPilotAI() {
