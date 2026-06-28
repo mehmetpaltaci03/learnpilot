@@ -1794,10 +1794,19 @@ useEffect(() => {
   });
 }, []);
 
-  const handleOnboard = (level, style) => {
-    setState(s => ({ ...s, level, learningStyle: style }));
-    setOnboarded(true);
-  };
+  const handleOnboard = async (level, style) => {
+  setState(s => ({ ...s, level, learningStyle: style }));
+  setOnboarded(true);
+  setPlanShown(false);
+  const { data: { user: u } } = await supabase.auth.getUser();
+  if (u) {
+    await supabase.from("profiles").update({
+      onboarded: true,
+      level,
+      learning_style: style,
+    }).eq("id", u.id);
+  }
+};
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
