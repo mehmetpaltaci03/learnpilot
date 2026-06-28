@@ -1753,7 +1753,11 @@ export default function LearnPilotAI() {
   const [authLoading, setAuthLoading] = useState(true);
   const [onboarded, setOnboarded] = useState(false);
   const [planShown, setPlanShown] = useState(false);
-  const [tab, setTab] = useState("dashboard");
+  const [tab, setTab] = useState(() => localStorage.getItem("lp_tab") || "dashboard");
+  const changeTab = (newTab) => {
+  setTab(newTab);
+  localStorage.setItem("lp_tab", newTab);
+};
   const [activeLesson, setActiveLesson] = useState(null);
   const [activeLang, setActiveLang] = useState("python");
   const [state, setState] = useState({
