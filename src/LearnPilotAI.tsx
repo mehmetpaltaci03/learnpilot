@@ -1798,7 +1798,7 @@ export default function LearnPilotAI() {
       };
     });
     setActiveLesson(null);
-    setTab("lessons");
+    changeTab("lessons");
   };
 
   if (authLoading) return (
