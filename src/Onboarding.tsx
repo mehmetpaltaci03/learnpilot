@@ -1,3 +1,6 @@
+"use client";
+
+import { useState } from "react";
 // ─── ONBOARDING ──────────────────────────────────────────────
 function Onboarding({ onDone }) {
   const [step, setStep] = useState(0);
@@ -328,3 +331,4 @@ Bu öğrenci için 1 haftalık kişisel programlama planı oluştur. Türkçe ya
     </div>
   );
 }
+export default Onboarding;
