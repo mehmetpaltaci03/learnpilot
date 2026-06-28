@@ -530,7 +530,7 @@ function Dashboard({ state }) {
 
   return (
     <div>
-      <h2 style={S.h2}>📊 Dashboard</h2>
+      <h2 style={S.h2}>📊 Kontrol Paneli</h2>
       <div style={{ display: "flex", gap: 12, marginBottom: 20, flexWrap: "wrap" }}>
         <ProgressCharts state={state} />
         <StatCard label="Toplam XP" value={xp} color="#a78bfa" />
