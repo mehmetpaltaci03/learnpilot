@@ -1753,6 +1753,7 @@ export default function LearnPilotAI() {
   const [authLoading, setAuthLoading] = useState(true);
   const [onboarded, setOnboarded] = useState(true);
   const [planShown, setPlanShown] = useState(true);
+  const [profileLoaded, setProfileLoaded] = useState(false);
   const [tab, setTab] = useState(() => localStorage.getItem("lp_tab") || "dashboard");
   const changeTab = (newTab) => {
   setTab(newTab);
@@ -1771,6 +1772,7 @@ useEffect(() => {
     const u = session?.user ?? null;
     setUser(u);
     setAuthLoading(false);
+    if (!u) setProfileLoaded(true);
     if (u) {
       const { data: profile } = await supabase
         .from("profiles")
@@ -1789,6 +1791,7 @@ useEffect(() => {
         }));
         setOnboarded(profile.onboarded || false);
         setPlanShown(profile.onboarded || false);
+        setProfileLoaded(true);
       }
     }
   });
@@ -1839,6 +1842,11 @@ if (u) {
     <div style={{ minHeight: "100vh", background: "#0a0a0f", display: "flex", alignItems: "center", justifyContent: "center" }}>
       <div style={{ color: "#7c3aed", fontSize: 18 }}>⏳ Yükleniyor...</div>
     </div>
+    if (!profileLoaded) return (
+  <div style={{ minHeight: "100vh", background: "#0a0a0f", display: "flex", alignItems: "center", justifyContent: "center" }}>
+    <div style={{ color: "#7c3aed", fontSize: 18 }}>⏳ Yükleniyor...</div>
+  </div>
+);
   );
 
   if (!user) return <AuthScreen onAuth={setUser} />;
