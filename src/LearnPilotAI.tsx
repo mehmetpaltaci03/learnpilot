@@ -991,3 +991,4 @@ Bu öğrenci için 1 haftalık kişisel programlama planı oluştur. Türkçe ya
     </div>
   );
 }
+export default LearnPilotAI;
