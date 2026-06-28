@@ -1751,11 +1751,11 @@ Bu öğrenci için 1 haftalık kişisel programlama planı oluştur. Türkçe ya
 export default function LearnPilotAI() {
   const [user, setUser] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
-  const [onboarded, setOnboarded] = useState(false);
-  const [planShown, setPlanShown] = useState(false);
+  const [onboarded, setOnboarded] = useState(true);
+  const [planShown, setPlanShown] = useState(true);
   const [tab, setTab] = useState(() => localStorage.getItem("lp_tab") || "dashboard");
   const changeTab = (newTab) => {
-  setTab(newTab);
+  changeTab(newTab);
   localStorage.setItem("lp_tab", newTab);
 };
   const [activeLesson, setActiveLesson] = useState(null);
