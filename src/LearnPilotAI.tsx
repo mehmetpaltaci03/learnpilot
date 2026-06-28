@@ -234,6 +234,63 @@ async function callClaude(messages, systemPrompt, onChunk) {
   }
   return full;
 }
+// ─── QUIZ DATA GENERATOR (Claude API) ───────────────────────
+// Bu fonksiyonu callClaude ile birlikte dosyanın üst kısmına ekle
+async function generateQuiz(lesson, lang) {
+  const sys = `Sen bir programlama eğitim uzmanısın. SADECE JSON döndür, markdown veya açıklama ekleme.
+Format (tam olarak bu yapıda, 5 soru):
+{
+  "questions": [
+    {
+      "id": 1,
+      "type": "multiple_choice",
+      "question": "...",
+      "options": ["A) ...", "B) ...", "C) ...", "D) ..."],
+      "answer": "A",
+      "explanation": "Çünkü ..."
+    },
+    {
+      "id": 2,
+      "type": "true_false",
+      "question": "...",
+      "answer": "true",
+      "explanation": "Çünkü ..."
+    },
+    {
+      "id": 3,
+      "type": "fill_blank",
+      "question": "print(____) fonksiyonu ekrana yazı yazdırır.",
+      "answer": "print",
+      "explanation": "Çünkü ..."
+    },
+    {
+      "id": 4,
+      "type": "multiple_choice",
+      "question": "...",
+      "options": ["A) ...", "B) ...", "C) ...", "D) ..."],
+      "answer": "B",
+      "explanation": "Çünkü ..."
+    },
+    {
+      "id": 5,
+      "type": "true_false",
+      "question": "...",
+      "answer": "false",
+      "explanation": "Çünkü ..."
+    }
+  ]
+}`;
+
+  const msgs = [{
+    role: "user",
+    content: `Dil: ${lang}\nDers: ${lesson.title}\nKonu: ${lesson.description}\nİçerik:\n${lesson.content.join("\n")}\n\nBu ders için 5 soruluk quiz hazırla (2 çoktan seçmeli, 2 doğru/yanlış, 1 boşluk doldurma). Türkçe.`
+  }];
+
+  let raw = "";
+  await callClaude(msgs, sys, (t) => { raw = t; });
+  const clean = raw.replace(/```json|```/g, "").trim();
+  return JSON.parse(clean);
+}
 
 // Simple JS sandbox
 function runJS(code) {
@@ -465,8 +522,208 @@ function Lessons({ state, onComplete, onStartLesson }) {
     </div>
   );
 }
+// ─── QUIZ COMPONENT ──────────────────────────────────────────
+// Bu bileşeni LessonDetail'in hemen üstüne ekle
+function QuizPanel({ lesson, lang, onQuizComplete }) {
+  const [quiz, setQuiz] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [answers, setAnswers] = useState({});
+  const [fillInputs, setFillInputs] = useState({});
+  const [submitted, setSubmitted] = useState(false);
+  const [analysis, setAnalysis] = useState("");
+  const [analysisLoading, setAnalysisLoading] = useState(false);
+  const [score, setScore] = useState(null);
 
-// ─── LESSON DETAIL ───────────────────────────────────────────
+  const loadQuiz = async () => {
+    setLoading(true);
+    setQuiz(null);
+    setAnswers({});
+    setFillInputs({});
+    setSubmitted(false);
+    setAnalysis("");
+    setScore(null);
+    try {
+      const q = await generateQuiz(lesson, lang);
+      setQuiz(q);
+    } catch {
+      // Fallback basit quiz
+      setQuiz({
+        questions: [
+          { id: 1, type: "true_false", question: `${lesson.title} dersi ${lang === "python" ? "Python" : "JavaScript"} diline aittir.`, answer: "true", explanation: "Evet, bu ders o dile aittir." },
+          { id: 2, type: "multiple_choice", question: "Aşağıdakilerden hangisi bu dersin ana konusudur?", options: ["A) " + (lesson.content[0] || "Değişkenler"), "B) Dosya işlemleri", "C) Ağ programlama", "D) Veritabanı"], answer: "A", explanation: lesson.content[0] || "İlk konu bu dersin özüdür." },
+          { id: 3, type: "fill_blank", question: "Bu ders '" + lesson.topic + "' konusunu kapsar. Konunun adı: ____", answer: lesson.topic, explanation: `Ders konusu: ${lesson.topic}` },
+          { id: 4, type: "true_false", question: "Bu dersi tamamlamak " + lesson.xp + " XP kazandırır.", answer: "true", explanation: `Evet, bu ders ${lesson.xp} XP değerindedir.` },
+          { id: 5, type: "multiple_choice", question: "Bu dersin zorluğu nedir?", options: ["A) " + lesson.difficulty, "B) expert", "C) legendary", "D) impossible"], answer: "A", explanation: `Ders zorluk seviyesi: ${lesson.difficulty}` }
+        ]
+      });
+    }
+    setLoading(false);
+  };
+
+  const handleAnswer = (qId, val) => {
+    if (submitted) return;
+    setAnswers(prev => ({ ...prev, [qId]: val }));
+  };
+
+  const handleFill = (qId, val) => {
+    if (submitted) return;
+    setFillInputs(prev => ({ ...prev, [qId]: val }));
+  };
+
+  const submitQuiz = async () => {
+    if (!quiz) return;
+    // Merge fill_blank answers into answers
+    const allAnswers = { ...answers };
+    quiz.questions.forEach(q => {
+      if (q.type === "fill_blank") {
+        allAnswers[q.id] = (fillInputs[q.id] || "").trim().toLowerCase();
+      }
+    });
+
+    let correct = 0;
+    const results = quiz.questions.map(q => {
+      const userAns = (allAnswers[q.id] || "").toString().toLowerCase().trim();
+      const correctAns = q.answer.toLowerCase().trim();
+      const isCorrect = q.type === "fill_blank"
+        ? userAns === correctAns || userAns.includes(correctAns) || correctAns.includes(userAns)
+        : userAns === correctAns || userAns === correctAns[0]?.toLowerCase();
+      if (isCorrect) correct++;
+      return { ...q, userAnswer: allAnswers[q.id] || "", isCorrect };
+    });
+
+    const scoreVal = Math.round((correct / quiz.questions.length) * 100);
+    setScore({ correct, total: quiz.questions.length, pct: scoreVal, results });
+    setSubmitted(true);
+
+    // AI analiz
+    setAnalysisLoading(true);
+    const wrongOnes = results.filter(r => !r.isCorrect);
+    const sys = `Sen bir programlama öğretmenisin. Türkçe, kısa ve net cevap ver. Öğrenciyi motive et.`;
+    const msgs = [{
+      role: "user",
+      content: `Öğrenci "${lesson.title}" dersinin quizinde ${correct}/${quiz.questions.length} aldı (%${scoreVal}).
+${wrongOnes.length > 0 ? `Yanlış sorular:\n${wrongOnes.map(r => `- "${r.question}" (Doğru: ${r.answer}, Öğrenci: ${r.userAnswer})`).join("\n")}` : "Tüm soruları doğru yaptı!"}
+
+Kısa analiz yap (3-4 cümle): Hangi konular eksik, ne çalışmalı, genel değerlendirme.`
+    }];
+    try {
+      await callClaude(msgs, sys, (t) => setAnalysis(t));
+    } catch { setAnalysis("Analiz yüklenemedi."); }
+    setAnalysisLoading(false);
+
+    if (scoreVal >= 60 && onQuizComplete) onQuizComplete(scoreVal);
+  };
+
+  const allAnswered = quiz && quiz.questions.every(q => {
+    if (q.type === "fill_blank") return (fillInputs[q.id] || "").trim().length > 0;
+    return answers[q.id] !== undefined;
+  });
+
+  // ── RESULT SCREEN ──
+  if (submitted && score) {
+    return (
+      <div>
+        {/* Skor Kartı */}
+        <div style={{
+          ...S.card,
+          textAlign: "center",
+          marginBottom: 20,
+          border: `1px solid ${score.pct >= 80 ? "#10b98144" : score.pct >= 60 ? "#f59e0b44" : "#dc262644"}`
+        }}>
+          <div style={{ fontSize: 52, marginBottom: 8 }}>
+            {score.pct >= 80 ? "🎉" : score.pct >= 60 ? "👍" : "📚"}
+          </div>
+          <div style={{ fontSize: 36, fontWeight: 800, color: score.pct >= 80 ? "#10b981" : score.pct >= 60 ? "#f59e0b" : "#ef4444" }}>
+            %{score.pct}
+          </div>
+          <div style={{ fontSize: 16, color: "#94a3b8", marginTop: 4 }}>
+            {score.correct}/{score.total} doğru
+          </div>
+          <div style={{ fontSize: 13, color: "#64748b", marginTop: 8 }}>
+            {score.pct >= 80 ? "Mükemmel! Konuyu çok iyi öğrendin." : score.pct >= 60 ? "İyi iş! Birkaç noktayı tekrar et." : "Konuyu tekrar gözden geçirmeyi dene."}
+          </div>
+        </div>
+
+        {/* Soru Analizi */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 20 }}>
+          {score.results.map((r, i) => (
+            <div key={r.id} style={{
+              ...S.card,
+              border: `1px solid ${r.isCorrect ? "#10b98133" : "#dc262633"}`,
+              background: r.isCorrect ? "#052e1611" : "#1a0a0a11"
+            }}>
+              <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
+                <span style={{ fontSize: 18, flexShrink: 0 }}>{r.isCorrect ? "✅" : "❌"}</span>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 6, color: "#e2e8f0" }}>
+                    <span style={{ color: "#64748b", fontSize: 12, marginRight: 6 }}>S{i + 1}</span>
+                    {r.question}
+                  </div>
+                  {r.type === "multiple_choice" && r.options && (
+                    <div style={{ display: "flex", flexDirection: "column", gap: 4, marginBottom: 8 }}>
+                      {r.options.map((opt, oi) => {
+                        const letter = ["A", "B", "C", "D"][oi];
+                        const isUserChoice = r.userAnswer?.toString().toUpperCase() === letter ||
+                          r.userAnswer === opt || r.userAnswer?.toString().toUpperCase() === r.answer?.toUpperCase() && letter === r.answer?.toUpperCase();
+                        const isCorrectOpt = letter.toLowerCase() === r.answer.toLowerCase() || opt.toLowerCase().startsWith(r.answer.toLowerCase() + ")");
+                        return (
+                          <div key={oi} style={{
+                            padding: "4px 10px", borderRadius: 6, fontSize: 13,
+                            background: isCorrectOpt ? "#052e16" : (isUserChoice && !r.isCorrect) ? "#1a0a0a" : "transparent",
+                            color: isCorrectOpt ? "#10b981" : (isUserChoice && !r.isCorrect) ? "#f87171" : "#64748b",
+                            border: `1px solid ${isCorrectOpt ? "#10b98133" : (isUserChoice && !r.isCorrect) ? "#dc262633" : "transparent"}`
+                          }}>
+                            {opt} {isCorrectOpt ? "✓" : (isUserChoice && !r.isCorrect) ? "✗" : ""}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                  {r.type === "true_false" && (
+                    <div style={{ fontSize: 13, marginBottom: 6, color: "#64748b" }}>
+                      Senin cevabın: <span style={{ color: r.isCorrect ? "#10b981" : "#f87171", fontWeight: 600 }}>
+                        {r.userAnswer === "true" ? "Doğru ✓" : "Yanlış ✗"}
+                      </span>
+                      {!r.isCorrect && <span style={{ color: "#10b981", marginLeft: 8 }}>
+                        → Doğru cevap: {r.answer === "true" ? "Doğru ✓" : "Yanlış ✗"}
+                      </span>}
+                    </div>
+                  )}
+                  {r.type === "fill_blank" && !r.isCorrect && (
+                    <div style={{ fontSize: 13, marginBottom: 6 }}>
+                      <span style={{ color: "#f87171" }}>Senin cevabın: "{r.userAnswer}"</span>
+                      <span style={{ color: "#10b981", marginLeft: 8 }}>→ Doğru: "{r.answer}"</span>
+                    </div>
+                  )}
+                  <div style={{
+                    fontSize: 12, color: "#94a3b8", background: "#0a0a0f",
+                    padding: "6px 10px", borderRadius: 6, border: "1px solid #1e1e2e", lineHeight: 1.6
+                  }}>
+                    💡 {r.explanation}
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* AI Analizi */}
+        <div style={{ ...S.card, border: "1px solid #7c3aed33", marginBottom: 16 }}>
+          <h3 style={{ ...S.h3, color: "#a78bfa" }}>🤖 AI Öğretmen Analizi</h3>
+          {analysisLoading
+            ? <div style={{ color: "#7c3aed", fontSize: 13 }}>Analiz ediliyor●●●</div>
+            : <div style={{ fontSize: 13, color: "#94a3b8", lineHeight: 1.7, whiteSpace: "pre-wrap" }}>{analysis}</div>
+          }
+        </div>
+
+        {/* Tekrar butonu */}
+        <div style={{ display: "flex", gap: 10 }}>
+          <button onClick={loadQuiz} style={S.btn("outline")}>🔄 Quizi Tekrar Çöz</button>
+        </div>
+      </div>
+    );
+  }
+
 function LessonDetail({ lesson, lang, onComplete, onBack, state }) {
   const [tab, setTab] = useState("learn");
   const [code, setCode] = useState(lesson.exercise.starter);
@@ -476,8 +733,9 @@ function LessonDetail({ lesson, lang, onComplete, onBack, state }) {
   const [aiHint, setAiHint] = useState("");
   const [loadingHint, setLoadingHint] = useState(false);
   const [attempts, setAttempts] = useState(0);
-
   const [pyLoading, setPyLoading] = useState(false);
+  const [quizDone, setQuizDone] = useState(false);
+  const [quizScore, setQuizScore] = useState(null);
 
   const runCode = async () => {
     if (lang === "python") {
@@ -520,6 +778,12 @@ function LessonDetail({ lesson, lang, onComplete, onBack, state }) {
     setLoadingHint(false);
   };
 
+  const tabs = [
+    { id: "learn", label: "📖 Öğren" },
+    { id: "exercise", label: "💻 Egzersiz" },
+    { id: "quiz", label: `📝 Quiz${quizDone ? ` ✅` : ""}` },
+  ];
+
   return (
     <div>
       <button onClick={onBack} style={{ ...S.btn("outline"), marginBottom: 16 }}>← Geri</button>
@@ -528,13 +792,14 @@ function LessonDetail({ lesson, lang, onComplete, onBack, state }) {
         <span style={S.tag("#a78bfa")}>+{lesson.xp} XP</span>
       </div>
       <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
-        {["learn", "exercise"].map(t => (
-          <button key={t} onClick={() => setTab(t)} style={S.navTab(tab === t)}>
-            {t === "learn" ? "📖 Öğren" : "💻 Egzersiz"}
+        {tabs.map(t => (
+          <button key={t.id} onClick={() => setTab(t.id)} style={S.navTab(tab === t.id)}>
+            {t.label}
           </button>
         ))}
       </div>
 
+      {/* LEARN TAB */}
       {tab === "learn" && (
         <div style={S.card}>
           <h3 style={S.h3}>Ders İçeriği</h3>
@@ -548,6 +813,7 @@ function LessonDetail({ lesson, lang, onComplete, onBack, state }) {
         </div>
       )}
 
+      {/* EXERCISE TAB */}
       {tab === "exercise" && (
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
           <div>
@@ -570,7 +836,7 @@ function LessonDetail({ lesson, lang, onComplete, onBack, state }) {
             <div style={{ ...S.card, marginBottom: 12 }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
                 <h3 style={{ ...S.h3, margin: 0 }}>✏️ Kod Editörü ({lang})</h3>
-                <button onClick={runCode} disabled={pyLoading} style={S.btn("success")}>{pyLoading ? "⏳ Çalışıyor..." : "▶ Çalıştır"}</button>
+                <button onClick={runCode} disabled={pyLoading} style={S.btn("success")}>{pyLoading ? "⏳ Çalışıyor..." : "▶️ Çalıştır"}</button>
               </div>
               <textarea
                 value={code}
@@ -589,12 +855,40 @@ function LessonDetail({ lesson, lang, onComplete, onBack, state }) {
               {passed && (
                 <div style={{ marginTop: 12, background: "#052e16", border: "1px solid #10b981", borderRadius: 8, padding: 12, textAlign: "center" }}>
                   <div style={{ fontSize: 20, marginBottom: 4 }}>🎉 Başardın!</div>
-                  <div style={{ fontSize: 13, color: "#86efac", marginBottom: 10 }}>+{lesson.xp} XP kazandın!</div>
-                  <button onClick={() => onComplete(lesson)} style={S.btn("success")}>Tamamla & Devam Et →</button>
+                  <div style={{ fontSize: 13, color: "#86efac", marginBottom: 10 }}>Egzersizi tamamladın! Şimdi quizi çözerek konuyu pekiştir.</div>
+                  <div style={{ display: "flex", gap: 10, justifyContent: "center" }}>
+                    <button onClick={() => setTab("quiz")} style={S.btn()}>📝 Quize Geç →</button>
+                    <button onClick={() => onComplete(lesson)} style={S.btn("success")}>Quizsiz Tamamla</button>
+                  </div>
                 </div>
               )}
             </div>
           </div>
+        </div>
+      )}
+
+      {/* QUIZ TAB */}
+      {tab === "quiz" && (
+        <div>
+          {quizDone && (
+            <div style={{ ...S.card, marginBottom: 16, background: "#052e16", border: "1px solid #10b98144", textAlign: "center" }}>
+              <div style={{ fontSize: 20, marginBottom: 4 }}>✅ Quiz Tamamlandı!</div>
+              <div style={{ fontSize: 13, color: "#86efac", marginBottom: 10 }}>
+                Puanın: %{quizScore} — Artık dersi tamamlayabilirsin!
+              </div>
+              <button onClick={() => onComplete(lesson)} style={S.btn("success")}>
+                Dersi Tamamla & XP Kazan →
+              </button>
+            </div>
+          )}
+          <QuizPanel
+            lesson={lesson}
+            lang={lang}
+            onQuizComplete={(score) => {
+              setQuizDone(true);
+              setQuizScore(score);
+            }}
+          />
         </div>
       )}
     </div>
