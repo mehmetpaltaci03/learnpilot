@@ -529,14 +529,15 @@ function Dashboard({ state }) {
   const pct = Math.round((completedLessons.length / totalLessons) * 100);
 
   return (
-    <div>
-      <h2 style={S.h2}>📊 Kontrol Paneli</h2>
-      <div style={{ display: "flex", gap: 12, marginBottom: 20, flexWrap: "wrap" }}>
-        <ProgressCharts state={state} />
-        <StatCard label="Toplam XP" value={xp} color="#a78bfa" />
-        <StatCard label="Seviye" value={`Lv.${level}`} color="#06b6d4" />
-        <StatCard label="Günlük Seri" value={`${streak} 🔥`} color="#f59e0b" />
-        <StatCard label="Tamamlanan" value={`${completedLessons.length}/${totalLessons}`} color="#10b981" />
+  <div>
+    <h2 style={S.h2}>📊 Kontrol Paneli</h2>
+    <div style={{ display: "flex", gap: 12, marginBottom: 20, flexWrap: "wrap" }}>
+      <StatCard label="Toplam XP" value={xp} color="#a78bfa" />
+      <StatCard label="Seviye" value={`Lv.${level}`} color="#06b6d4" />
+      <StatCard label="Günlük Seri" value={`${streak} 🔥`} color="#f59e0b" />
+      <StatCard label="Tamamlanan" value={`${completedLessons.length}/${totalLessons}`} color="#10b981" />
+    </div>
+    <ProgressCharts state={state} />
       </div>
       <div style={{ ...S.card, marginBottom: 16 }}>
         <h3 style={S.h3}>XP İlerlemesi</h3>
