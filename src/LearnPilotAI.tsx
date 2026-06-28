@@ -538,7 +538,7 @@ function Dashboard({ state }) {
       <StatCard label="Tamamlanan" value={`${completedLessons.length}/${totalLessons}`} color="#10b981" />
     </div>
     <ProgressCharts state={state} />
-      </div>
+    
       <div style={{ ...S.card, marginBottom: 16 }}>
         <h3 style={S.h3}>XP İlerlemesi</h3>
         <XPBar xp={xp} />
