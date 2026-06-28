@@ -1842,13 +1842,7 @@ if (u) {
   );
 
   if (!user) return <AuthScreen onAuth={setUser} />;
-  if (!onboarded) return <Onboarding onDone={handleOnboard} />;
-if (!planShown) return (
-  <PlanScreen
-    level={state.level}
-    learningStyle={state.learningStyle}
-    onDone={() => setPlanShown(true)}
-  />
+  
 );
   const level = getLevel(state.xp);
   const navItems = [
