@@ -1776,85 +1776,133 @@ useEffect(() => {
     console.log("Session user:", u);
     if (!u) setProfileLoaded(true);
     if (u) {
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("id", u.id)
-        .single();
-      console.log("Profile:", profile);
-      if (profile) {
-        setState(s => ({
-          ...s,
-          xp: profile.xp || 0,
-          streak: profile.streak || 1,
-          completedLessons: profile.completed_lessons || [],
-          weakTopics: profile.weak_topics || [],
-          level: profile.level || "beginner",
-          learningStyle: profile.learning_style || "practice",
-        }));
-        setOnboarded(profile.onboarded || false);
-        setPlanShown(profile.onboarded || false);
-        setProfileLoaded(true);
+      const { data: profile, error } = await supabase
+  .from("profiles")
+  .select("*")
+  .eq("id", u.id)
+  .maybeSingle();
+      
+if (error) {
+  console.error("Profile okunamadı:", error);
+  alert("Profil okunamadı: " + error.message);
+  setProfileLoaded(true);
+  setAuthLoading(false);
+  return;
+}
+if (profile) {
+  setState(s => ({
+    ...s,
+    xp: profile.xp || 0,
+    streak: profile.streak || 1,
+    completedLessons: profile.completed_lessons || [],
+    weakTopics: profile.weak_topics || [],
+    level: profile.level || "beginner",
+    learningStyle: profile.learning_style || "practice",
+  }));
+
+  setOnboarded(Boolean(profile.onboarded));
+  setPlanShown(Boolean(profile.onboarded));
+} else {
+  setOnboarded(false);
+  setPlanShown(false);
+}
+
+setProfileLoaded(true);
+setAuthLoading(false);
       }
     }
   });
 }, []);
 
   const handleOnboard = async (level, style) => {
+  const { data: { user: u } } = await supabase.auth.getUser();
+  if (!u) return;
+
+  const { error } = await supabase.from("profiles").upsert({
+    id: u.id,
+    onboarded: true,
+    level,
+    learning_style: style,
+    xp: state.xp || 0,
+    streak: state.streak || 1,
+    completed_lessons: state.completedLessons || [],
+    weak_topics: state.weakTopics || [],
+  }, { onConflict: "id" });
+
+  if (error) {
+    console.error("Profile kaydedilemedi:", error);
+    alert("Profil kaydedilemedi: " + error.message);
+    return;
+  }
+
   setState(s => ({ ...s, level, learningStyle: style }));
   setOnboarded(true);
   setPlanShown(false);
-  const { data: { user: u } } = await supabase.auth.getUser();
-  if (u) {
-    await supabase.from("profiles").update({
-      onboarded: true,
-      level,
-      learning_style: style,
-    }).eq("id", u.id);
-  }
 };
-
   const handleLogout = async () => {
     await supabase.auth.signOut();
     setUser(null);
     setOnboarded(false);
   };
 
-  const handleComplete = async (lesson) => {
-    setState(s => {
-      const already = s.completedLessons.includes(lesson.id);
-      return {
-        ...s,
-        xp: already ? s.xp : s.xp + lesson.xp,
-        completedLessons: already ? s.completedLessons : [...s.completedLessons, lesson.id],
-      };
-    });
-    // Supabase'e kaydet
-const { data: { user: u } } = await supabase.auth.getUser();
-if (u) {
-  await supabase.from("profiles").update({
-    xp: state.xp + (already ? 0 : lesson.xp),
-    completed_lessons: already ? state.completedLessons : [...state.completedLessons, lesson.id],
-  }).eq("id", u.id);
-}
-    setActiveLesson(null);
-    changeTab("lessons");
-  };
+ const handleComplete = async (lesson) => {
+  const already = state.completedLessons.includes(lesson.id);
 
-  if (authLoading) return (
-    <div style={{ minHeight: "100vh", background: "#0a0a0f", display: "flex", alignItems: "center", justifyContent: "center" }}>
-      <div style={{ color: "#7c3aed", fontSize: 18 }}>⏳ Yükleniyor...</div>
-    </div>
-    if (!profileLoaded) return (
+  const nextXp = already ? state.xp : state.xp + lesson.xp;
+  const nextCompletedLessons = already
+    ? state.completedLessons
+    : [...state.completedLessons, lesson.id];
+
+  setState(s => ({
+    ...s,
+    xp: nextXp,
+    completedLessons: nextCompletedLessons,
+  }));
+
+  const { data: { user: u } } = await supabase.auth.getUser();
+
+  if (u) {
+    const { error } = await supabase.from("profiles").upsert({
+      id: u.id,
+      xp: nextXp,
+      completed_lessons: nextCompletedLessons,
+      onboarded: true,
+      level: state.level,
+      learning_style: state.learningStyle,
+      streak: state.streak || 1,
+      weak_topics: state.weakTopics || [],
+    }, { onConflict: "id" });
+
+    if (error) {
+      console.error("Ders kaydedilemedi:", error);
+      alert("Ders kaydedilemedi: " + error.message);
+      return;
+    }
+  }
+
+  setActiveLesson(null);
+  changeTab("lessons");
+};
+
+  if (authLoading || (user && !profileLoaded)) return (
   <div style={{ minHeight: "100vh", background: "#0a0a0f", display: "flex", alignItems: "center", justifyContent: "center" }}>
-    <div style={{ color: "#7c3aed", fontSize: 18 }}>⏳ Yükleniyor...</div>
+    <div style={{ color: "#7c3aed", fontSize: 18 }}>Yükleniyor...</div>
   </div>
 );
-  );
 
-  if (!user) return <AuthScreen onAuth={setUser} />;
-  
-);
+if (!user) return <AuthScreen onAuth={setUser} />;
+
+if (!onboarded) return <Onboarding onDone={handleOnboard} />;
+
+if (!planShown) {
+  return (
+    <PlanScreen
+      level={state.level}
+      learningStyle={state.learningStyle}
+      onDone={() => setPlanShown(true)}
+    />
+  );
+}
   const level = getLevel(state.xp);
   const navItems = [
     { id: "dashboard", label: "📊 Dashboard" },
