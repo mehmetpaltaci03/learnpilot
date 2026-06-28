@@ -1755,7 +1755,7 @@ export default function LearnPilotAI() {
   const [planShown, setPlanShown] = useState(true);
   const [tab, setTab] = useState(() => localStorage.getItem("lp_tab") || "dashboard");
   const changeTab = (newTab) => {
-  changeTab(newTab);
+  setTab(newTab);
   localStorage.setItem("lp_tab", newTab);
 };
   const [activeLesson, setActiveLesson] = useState(null);
