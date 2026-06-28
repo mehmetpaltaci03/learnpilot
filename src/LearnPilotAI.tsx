@@ -1765,17 +1765,34 @@ export default function LearnPilotAI() {
     completedLessons: [], weakTopics: [],
   });
 
-  // Oturum kontrolü
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null);
-      setAuthLoading(false);
-    });
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
-    });
-    return () => subscription.unsubscribe();
-  }, []);
+  // Oturum kontrolü ve veri yükleme
+useEffect(() => {
+  supabase.auth.getSession().then(async ({ data: { session } }) => {
+    const u = session?.user ?? null;
+    setUser(u);
+    setAuthLoading(false);
+    if (u) {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("id", u.id)
+        .single();
+      if (profile) {
+        setState(s => ({
+          ...s,
+          xp: profile.xp || 0,
+          streak: profile.streak || 1,
+          completedLessons: profile.completed_lessons || [],
+          weakTopics: profile.weak_topics || [],
+          level: profile.level || "beginner",
+          learningStyle: profile.learning_style || "practice",
+        }));
+        setOnboarded(profile.onboarded || false);
+        setPlanShown(profile.onboarded || false);
+      }
+    }
+  });
+}, []);
 
   const handleOnboard = (level, style) => {
     setState(s => ({ ...s, level, learningStyle: style }));
@@ -1788,7 +1805,7 @@ export default function LearnPilotAI() {
     setOnboarded(false);
   };
 
-  const handleComplete = (lesson) => {
+  const handleComplete = async (lesson) => {
     setState(s => {
       const already = s.completedLessons.includes(lesson.id);
       return {
@@ -1797,6 +1814,14 @@ export default function LearnPilotAI() {
         completedLessons: already ? s.completedLessons : [...s.completedLessons, lesson.id],
       };
     });
+    // Supabase'e kaydet
+const { data: { user: u } } = await supabase.auth.getUser();
+if (u) {
+  await supabase.from("profiles").update({
+    xp: state.xp + (already ? 0 : lesson.xp),
+    completed_lessons: already ? state.completedLessons : [...state.completedLessons, lesson.id],
+  }).eq("id", u.id);
+}
     setActiveLesson(null);
     changeTab("lessons");
   };
