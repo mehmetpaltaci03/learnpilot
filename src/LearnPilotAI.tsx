@@ -76,7 +76,6 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
       exercise: { prompt: "Araba sınıfı yaz: marka ve hiz özelliği, hizlan() metodu hızı 10 artırsın. BMW nesnesi oluştur, 3 kez hızlan, hızı yazdır.", starter: "class Araba:\n    def __init__(self, marka):\n        # hiz = 0\n        pass\n    \n    def hizlan(self):\n        # hizi artir\n        pass\n\naraba = Araba('BMW')\n# 3 kez hizlan\n# Hizi yazdir\n", solution: "class Araba:\n    def __init__(self,marka):\n        self.marka=marka\n        self.hiz=0\n    def hizlan(self):\n        self.hiz+=10\n\naraba=Araba('BMW')\naraba.hizlan()\naraba.hizlan()\naraba.hizlan()\nprint(araba.hiz)", tests: ["30"] }},
   ],
 
-  javascript: [
     // ── BEGINNER ──
     { id: "js1", title: "1. Değişkenler & Veri Tipleri", topic: "basics", xp: 50, difficulty: "beginner", description: "var, let, const ve JS veri tipleri",
       content: ["let: değiştirilebilir değişken (modern)", "const: sabit değişken (değiştirilemez)", "var: eski yöntem, kullanmaktan kaçın", "typeof operatörü tipi söyler", "undefined: atanmamış değer, null: boş değer"],
