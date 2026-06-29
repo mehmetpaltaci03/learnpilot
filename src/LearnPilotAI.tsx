@@ -2,14 +2,15 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { createClient } from "@supabase/supabase-js";
-
+import { S } from "./styles/uiStyles.ts";
+import { LESSONS } from "./data/lessons.ts";
+import { getLevel } from "./utils/progress.ts";
 // ─── SUPABASE ────────────────────────────────────────────────
 const SUPABASE_URL = "https://yccmepjsepinbxkgvfjg.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InljY21lcGpzZXBpbmJ4a2d2ZmpnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIzNDE3NTYsImV4cCI6MjA5NzkxNzc1Nn0.BpkASHBWc2ADJpIa1CzRieQ39M8MOXYCfos_VB90gNY";
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 // ─── CONSTANTS & DATA ────────────────────────────────────────
-const LESSONS = {
   python: [
     // ── BEGINNER ──
     { id: "py1", title: "1. Değişkenler & Veri Tipleri", topic: "basics", xp: 50, difficulty: "beginner", description: "int, float, str, bool ve değişken tanımlama",
@@ -334,6 +335,7 @@ function ProgressCharts({ state }) {
     </div>
   );
 }
+
 // ─── DASHBOARD ───────────────────────────────────────────────
 function Dashboard({ state }) {
   const { xp, streak, completedLessons, weakTopics } = state;
