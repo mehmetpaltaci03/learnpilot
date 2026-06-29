@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { createClient } from "@supabase/supabase-js";
-import { S } from "./styles/uiStyles.ts";
 import { LESSONS } from "./data/lessons.ts";
 import { getLevel } from "./utils/progress.ts";
 // ─── SUPABASE ────────────────────────────────────────────────
