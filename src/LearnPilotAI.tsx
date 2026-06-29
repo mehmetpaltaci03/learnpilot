@@ -139,7 +139,7 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
       content: ["export ile dışa, import ile içe aktarım", "default export vs named export", "Generator: function* ve yield", "Iterator protokolü: next() metodu", "Symbol, WeakMap, WeakSet ileri veri yapıları"],
       exercise: { prompt: "Generator fonksiyon ile Fibonacci dizisinin ilk 6 terimini üret ve yazdır (0,1,1,2,3,5).", starter: "function* fibonacci() {\n  // generator yaz\n}\n\nconst fib = fibonacci();\nfor(let i=0; i<6; i++){\n  console.log(fib.next().value);\n}", solution: "function* fibonacci(){\n  let a=0,b=1;\n  while(true){\n    yield a;\n    [a,b]=[b,a+b];\n  }\n}\nconst fib=fibonacci();\nfor(let i=0;i<6;i++){\n  console.log(fib.next().value);\n}", tests: ["0","1","1","2","3","5"] }},
   
-};
+
 
 const BADGES = [
   { id: "first_lesson", name: "İlk Adım", emoji: "🎯", desc: "İlk dersi tamamla", condition: (s) => s.completedLessons.length >= 1 },
